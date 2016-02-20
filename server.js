@@ -1,33 +1,34 @@
-'use strict';
+var express = require('express'),
+    port = process.env.PORT || 8080,
+    months = ["January","February","March","April","May","June","July","August",
+        "September","October","November","December"],
+    app = express();
 
-var express = require('express');
-var routes = require('./app/routes/index.js');
-var mongoose = require('mongoose');
-var passport = require('passport');
-var session = require('express-session');
+function isValidDate(d) {
+  if (Object.prototype.toString.call(d) !== "[object Date]")
+    return false;
+  return !isNaN(d.getTime());
+}
+    
+function getTime(req,res) {
+    var input = req.params.date,
+        date = new Date(isNaN(input) ? input : +input),
+        unix = null,
+        natural = null;
+    
+    //Weird bug with Date where '0' returns 'January 1, 2000'
+    if (input == 0) {
+        res.end(JSON.stringify({ "unix": 0, "natural": "January 1, 1970" }));
+    }
+    
+    if (isValidDate(date)) {
+        unix = date.getTime();
+        natural = [months[date.getMonth()],date.getDate()+',',date.getFullYear()].join(' ');
+    }
+    res.end(JSON.stringify({ "unix": unix, "natural": natural }));
+}
 
-var app = express();
-require('dotenv').load();
-require('./app/config/passport')(passport);
-
-mongoose.connect(process.env.MONGO_URI);
-
-app.use('/controllers', express.static(process.cwd() + '/app/controllers'));
-app.use('/public', express.static(process.cwd() + '/public'));
-app.use('/common', express.static(process.cwd() + '/app/common'));
-
-app.use(session({
-	secret: 'secretClementine',
-	resave: false,
-	saveUninitialized: true
-}));
-
-app.use(passport.initialize());
-app.use(passport.session());
-
-routes(app, passport);
-
-var port = process.env.PORT || 8080;
-app.listen(port,  function () {
+app.route('/:date').get(getTime);
+app.listen(port, function () {
 	console.log('Node.js listening on port ' + port + '...');
 });
